@@ -1,7 +1,7 @@
 services:
   - type: web
-    name: connabis-verification
+    name: express-app
     env: node
-    region: oregon
+    plan: free
     buildCommand: "npm install"
     startCommand: "npm start"
