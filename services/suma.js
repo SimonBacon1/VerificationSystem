@@ -1,18 +1,51 @@
-import axios from 'axios';
+import axios from "axios";
 
-const SUMA_BASE = process.env.SUMA_BASE || 'https://api.sumamexico.com';
-const SUMA_API_KEY = process.env.SUMA_API_KEY;
+export const createSumaSession = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: "email required" });
 
-export async function createSumaVerification({ email, reference }){
-  const payload = {
-    callbackUrl: `${process.env.VERIFICATION_HOST}/suma/webhook`,
-    type: ["document","face","liveness"],
-    metadata: { userEmail: email, reference }
-  };
+    // 1. SUMA TOKEN
+    const tokenResp = await axios.post(
+      `${process.env.SUMA_BASE_URL}/oauth/token`,
+      {
+        client_id: process.env.SUMA_CLIENT_ID,
+        client_secret: process.env.SUMA_CLIENT_SECRET,
+        grant_type: "client_credentials"
+      }
+    );
 
-  const resp = await axios.post(`${SUMA_BASE}/verifications`, payload, {
-    headers: { Authorization: `Bearer ${SUMA_API_KEY}` }
-  });
+    const token = tokenResp.data.access_token;
 
-  return resp.data; // expected { verificationId, url }
-}
+    // 2. CREAR SESIÓN
+    const sessionResp = await axios.post(
+      `${process.env.SUMA_BASE_URL}/verifications`,
+      {
+        callbackUrl: `${process.env.BACKEND_URL}/suma/webhook`,
+        type: ["document", "face", "liveness"],
+        metadata: { userEmail: email }
+      },
+      {
+        headers: { Authorization: `Bearer ${token}` }
+      }
+    );
+
+    const verificationUrl = sessionResp.data.url;
+
+    // 3. MANDAR EMAIL AL CLIENTE
+    await sendEmail({
+      to: email,
+      subject: "Verificación de Identidad",
+      html: `
+        <p>Hola,</p>
+        <p>Por favor completa tu verificación de identidad usando tu teléfono:</p>
+        <p><a href="${verificationUrl}">Haz clic aquí para verificar</a></p>
+        `
+    });
+
+    return res.json({ ok: true, verificationUrl });
+  } catch (err) {
+    console.error("SUMA CREATE ERROR", err.response?.data || err);
+    return res.status(500).json({ error: "suma_error" });
+  }
+};
