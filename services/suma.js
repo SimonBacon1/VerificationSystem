@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const SUMA_BASE = process.env.SUMA_BASE || 'https://api.sumaverify.com/v1';
+const SUMA_BASE = process.env.SUMA_BASE || 'https://api.sumamexico.com';
 const SUMA_API_KEY = process.env.SUMA_API_KEY;
 
 export async function createSumaVerification({ email, reference }){

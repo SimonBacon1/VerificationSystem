@@ -1,5 +1,4 @@
 import { v4 as uuidv4 } from 'uuid';
-import pool from '../services/db.js';
 import { createSumaVerification } from '../services/suma.js';
 import { sendEmail } from '../services/resend.js';
 import { validateShopifyWebhook } from '../utils/verifyShopifySignature.js';
@@ -16,7 +15,6 @@ const handleShopifyCustomerCreate = async (req, res) => {
     if(!email) return res.status(400).send('no email');
 
     const verificationId = uuidv4();
-    await pool.query('INSERT INTO verifications(id, shopify_customer_id, email, status) VALUES($1,$2,$3,$4)', [verificationId, id || null, email, 'pending']);
 
     const sumaSession = await createSumaVerification({ email, reference: verificationId });
 

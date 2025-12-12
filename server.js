@@ -1,6 +1,5 @@
 import express from 'express';
 import dotenv from 'dotenv';
-import { initDb } from './services/db.js';
 import shopifyRoutes from './routes/shopify.js';
 import sumaRoutes from './routes/suma.js';
 
@@ -21,9 +20,4 @@ app.post('/suma/webhook', sumaRoutes.handleSumaWebhook);
 
 const PORT = process.env.PORT || 3000;
 
-initDb().then(() => {
-  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-}).catch(err => {
-  console.error('DB init error', err);
-  process.exit(1);
-});
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

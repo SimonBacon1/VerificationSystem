@@ -1,4 +1,3 @@
-import pool from '../services/db.js';
 import { sendEmail } from '../services/resend.js';
 import { getCustomerByEmail, tagCustomer } from '../services/shopify.js';
 
@@ -10,10 +9,6 @@ const handleSumaWebhook = async (req, res) => {
     const metadata = payload.metadata || {};
     const reference = metadata.reference;
     const userEmail = metadata.userEmail || metadata.email || payload.email;
-
-    if(reference){
-      await pool.query('UPDATE verifications SET status=$1, suma_id=$2, raw_response=$3, updated_at=now() WHERE id=$4', [status, sumaId, payload, reference]);
-    }
 
     let subject, message;
     if(status === 'approved' || status === 'success' || status === 'passed'){

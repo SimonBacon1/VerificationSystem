@@ -1,6 +1,7 @@
-# Connabis Verification Service
+# Connabis Verification Service (No DB)
 
 Node.js service that integrates Shopify -> SUMA (VeriDocID) -> Resend email notifications.
+This variant runs WITHOUT a database or local logs (stateless).
 
 MVP:
 - Create SUMA verification session (document + selfie + liveness)
