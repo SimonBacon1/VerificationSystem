@@ -1,18 +1,23 @@
 import express from 'express';
-import bodyParser from 'body-parser';
 import dotenv from 'dotenv';
 import { initDb } from './services/db.js';
-import { handleShopifyCustomerCreate } from './routes/shopify.js';
-import { handleSumaWebhook } from './routes/suma.js';
+import shopifyRoutes from './routes/shopify.js';
+import sumaRoutes from './routes/suma.js';
 
 dotenv.config();
 const app = express();
-app.use(bodyParser.json());
+
+// capture raw body for webhook verification, and still parse json
+app.use(express.json({
+  verify: (req, res, buf) => {
+    req.rawBody = buf;
+  }
+}));
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
-app.post('/webhook/shopify/customers_create', handleShopifyCustomerCreate);
-app.post('/suma/webhook', handleSumaWebhook);
+app.post('/webhook/shopify/customers_create', shopifyRoutes.handleShopifyCustomerCreate);
+app.post('/suma/webhook', sumaRoutes.handleSumaWebhook);
 
 const PORT = process.env.PORT || 3000;
 

@@ -2,10 +2,10 @@
 
 Node.js service that integrates Shopify -> SUMA (VeriDocID) -> Resend email notifications.
 
-Features (MVP):
+MVP:
 - Create SUMA verification session (document + selfie + liveness)
 - Send verification link to user (Resend) to open on phone
-- Receive SUMA webhook results and email user + admin in Spanish
-- Optionally tag Shopify customer
+- Receive SUMA webhook results and send Spanish emails to user + admin
+- Optionally tag Shopify customer as Verified / Urgent
 
 Deploy: push this repo to GitHub and connect to Render, set environment variables from .env.example

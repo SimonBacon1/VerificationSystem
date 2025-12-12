@@ -4,16 +4,19 @@ import { createSumaVerification } from '../services/suma.js';
 import { sendEmail } from '../services/resend.js';
 import { validateShopifyWebhook } from '../utils/verifyShopifySignature.js';
 
-export async function handleShopifyCustomerCreate(req, res){
+const handleShopifyCustomerCreate = async (req, res) => {
   try{
     if(!validateShopifyWebhook(req)) return res.status(401).send('invalid signature');
 
+    // Shopify sends full object in body; customer may be in req.body
     const customer = req.body;
-    const email = customer.email;
-    const id = customer.id;
+    const email = customer.email || customer.email_address || (customer.customer && customer.customer.email);
+    const id = customer.id || (customer.customer && customer.customer.id);
+
+    if(!email) return res.status(400).send('no email');
 
     const verificationId = uuidv4();
-    await pool.query('INSERT INTO verifications(id, shopify_customer_id, email, status) VALUES($1,$2,$3,$4)', [verificationId, id, email, 'pending']);
+    await pool.query('INSERT INTO verifications(id, shopify_customer_id, email, status) VALUES($1,$2,$3,$4)', [verificationId, id || null, email, 'pending']);
 
     const sumaSession = await createSumaVerification({ email, reference: verificationId });
 
@@ -29,12 +32,14 @@ export async function handleShopifyCustomerCreate(req, res){
     await sendEmail({
       to: process.env.ADMIN_EMAIL,
       subject: 'Nueva verificación iniciada',
-      html: `<p>Nuevo registro: ${email}<br>Shopify ID: ${id}<br>Referencia: ${verificationId}</p>`
+      html: `<p>Nuevo registro: ${email}<br>Shopify ID: ${id || 'N/A'}<br>Referencia: ${verificationId}</p>`
     });
 
-    res.status(200).json({ ok: true });
+    return res.status(200).json({ ok: true });
   } catch(err){
     console.error('shopify webhook error', err?.response?.data || err.message);
-    res.status(500).send('error');
+    return res.status(500).send('error');
   }
-}
+};
+
+export default { handleShopifyCustomerCreate };
