@@ -1,7 +1,0 @@
-services:
-  - type: web
-    name: connabis-verification
-    env: node
-    region: oregon
-    buildCommand: "npm install"
-    startCommand: "npm start"
