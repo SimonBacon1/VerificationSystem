@@ -3,6 +3,23 @@ import cors from "cors";
 
 import sumaRoutes from "./routes/suma.js";
 import shopifyRoutes from "./routes/shopify.js";
+import { sendEmail } from './services/email.js';
+
+app.get('/test/email', async (req, res) => {
+  try {
+    await sendEmail({
+      to: process.env.ADMIN_EMAIL,
+      subject: '✅ Test de correo – Connabis',
+      html: '<p>Este es un correo de prueba enviado correctamente con Resend.</p>',
+    });
+
+    res.json({ ok: true, message: 'Email enviado' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 
 const app = express();
 
