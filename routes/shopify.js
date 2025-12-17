@@ -1,43 +1,44 @@
-import { v4 as uuidv4 } from 'uuid';
-import { createSumaVerification } from '../services/suma.js';
-import { sendEmail } from '../services/resend.js';
-import { validateShopifyWebhook } from '../utils/verifyShopifySignature.js';
+import express from "express";
+import axios from "axios";
 
-const handleShopifyCustomerCreate = async (req, res) => {
-  try{
-    if(!validateShopifyWebhook(req)) return res.status(401).send('invalid signature');
+const router = express.Router();
 
-    // Shopify sends full object in body; customer may be in req.body
-    const customer = req.body;
-    const email = customer.email || customer.email_address || (customer.customer && customer.customer.email);
-    const id = customer.id || (customer.customer && customer.customer.id);
+/**
+ * Shopify webhook / endpoint
+ * Se llama cuando el usuario completa signup / checkout
+ */
+router.post("/create-verification", async (req, res) => {
+  try {
+    const { email } = req.body;
 
-    if(!email) return res.status(400).send('no email');
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: "Email es requerido"
+      });
+    }
 
-    const verificationId = uuidv4();
+    // Llamada interna a tu propio backend (SUMA)
+    const response = await axios.post(
+      `${process.env.BACKEND_URL}/suma/create-session`,
+      { email }
+    );
 
-    const sumaSession = await createSumaVerification({ email, reference: verificationId });
-
-    const verificationUrl = sumaSession.url || `${process.env.VERIFICATION_HOST}/verify/${verificationId}`;
-    const expires = new Date(Date.now() + Number(process.env.VERIFICATION_LINK_EXP_HOURS || 48) * 3600 * 1000).toISOString();
-
-    await sendEmail({
-      to: email,
-      subject: 'Completa tu verificación de identidad',
-      html: `<p>Hola,</p><p>Para completar tu registro, por favor realiza tu verificación desde tu teléfono usando el siguiente enlace:</p><p><a href="${verificationUrl}">${verificationUrl}</a></p><p>Este enlace expira el ${expires}.</p>`
+    return res.status(200).json({
+      success: true,
+      verificationUrl: response.data.verificationUrl
     });
 
-    await sendEmail({
-      to: process.env.ADMIN_EMAIL,
-      subject: 'Nueva verificación iniciada',
-      html: `<p>Nuevo registro: ${email}<br>Shopify ID: ${id || 'N/A'}<br>Referencia: ${verificationId}</p>`
-    });
+  } catch (error) {
+    console.error("❌ Error creando verificación SUMA desde Shopify:", 
+      error?.response?.data || error.message
+    );
 
-    return res.status(200).json({ ok: true });
-  } catch(err){
-    console.error('shopify webhook error', err?.response?.data || err.message);
-    return res.status(500).send('error');
+    return res.status(500).json({
+      success: false,
+      error: "No se pudo iniciar la verificación"
+    });
   }
-};
+});
 
-export default { handleShopifyCustomerCreate };
+export default router;
