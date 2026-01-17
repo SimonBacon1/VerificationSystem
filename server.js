@@ -2,11 +2,9 @@ import express from 'express';
 import { sendTestEmail } from './services/email.js';
 import { sendVerificationEmail } from './services/email.js';
 import sumaRouter from './routes/suma.js';
-import shopifyRouter from './routes/shopify.js';
 import cors from 'cors';
 import shopifyRouter from './routes/shopify.js';
 
-app.use('/shopify', shopifyRouter);
 
 app.use(cors());
 app.use('/suma', sumaRouter);
