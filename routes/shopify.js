@@ -1,55 +1,63 @@
-import express from "express";
-import { sendVerificationEmail } from "../services/email.js";
-import crypto from "crypto";
+import express from 'express';
+import { verifyShopifyHmac } from '../utils/verifyShopify.js';
+import { createSumaVerification } from '../services/suma.js';
+import { sendVerificationEmail } from '../services/email.js';
 
 const router = express.Router();
 
-// Store pending verifications (use database in production)
-const pendingVerifications = new Map();
-
-router.post("/customer-create", async (req, res) => {
-  try {
-    const { email, id } = req.body;
-    
-    // Generate verification token
-    const token = crypto.randomBytes(32).toString('hex');
-    
-    // Store verification data
-    pendingVerifications.set(token, {
-      email,
-      customerId: id,
-      createdAt: Date.now()
-    });
-    
-    // Send verification email
-    const verificationUrl = `${process.env.VERIFICATION_HOST}/verify?token=${token}`;
-    await sendVerificationEmail({ to: email, verificationUrl });
-    
-    console.log(`Verification email sent to ${email}`);
-    res.status(200).json({ ok: true });
-  } catch (error) {
-    console.error("Error:", error);
-    res.status(500).json({ ok: false, error: error.message });
+// Existing order webhook (keep for future use)
+router.post('/order-created', (req, res) => {
+  if (!verifyShopifyHmac(req)) {
+    return res.status(401).send('Invalid HMAC');
   }
+
+  const order = req.body;
+
+  createSumaVerification(order)
+    .then(() => res.send('ok'))
+    .catch(err => {
+      console.error(err);
+      res.status(500).send('error');
+    });
 });
 
-router.get("/verify", (req, res) => {
-  const { token } = req.query;
-  const data = pendingVerifications.get(token);
+// NEW: Customer creation webhook
+router.post('/customer-created', async (req, res) => {
+  console.log('[Shopify] Customer created webhook received');
   
-  if (!data) {
-    return res.send("Invalid or expired verification link");
+  // Verify webhook authenticity
+  if (!verifyShopifyHmac(req)) {
+    console.error('[Shopify] Invalid HMAC');
+    return res.status(401).send('Invalid HMAC');
   }
-  
-  // Check expiration (48 hours)
-  const hours = (Date.now() - data.createdAt) / (1000 * 60 * 60);
-  if (hours > 48) {
-    pendingVerifications.delete(token);
-    return res.send("Verification link expired");
+
+  const customer = req.body;
+  console.log('[Shopify] Customer ID:', customer.id, 'Email:', customer.email);
+
+  try {
+    // Create SUMA verification session
+    const verification = await createSumaVerification({
+      customerId: customer.id,
+      email: customer.email,
+      firstName: customer.first_name,
+      lastName: customer.last_name
+    });
+
+    console.log('[SUMA] Verification created:', verification.id);
+
+    // Send verification email to customer
+    await sendVerificationEmail({
+      to: customer.email,
+      link: verification.verification_url
+    });
+
+    console.log('[Email] Verification email sent to:', customer.email);
+
+    res.status(200).send('ok');
+  } catch (error) {
+    console.error('[Error] Customer verification flow failed:', error);
+    res.status(500).send('error');
   }
-  
-  pendingVerifications.delete(token);
-  res.send("✅ Email verified successfully!");
 });
 
 export default router;
